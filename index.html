@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Qué comemos hoy</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: tablero vertical para pantalla de nevera. Arriba pestañas grandes, una losa amarilla con LA respuesta del día, y debajo el resto de opciones. */
+:root{
+  font-size:clamp(16px,2.2vw,26px);
+  color-scheme:light;
+  --bg:#EEF2EC;
+  --surface:#E0E8DE;
+  --ink:#13241B;
+  --muted:#4A6054;
+  --line:#B9C8BA;
+  --ready:#1E7A4C;
+  --on-ready:#FFFFFF;
+  --warn:#B4301C;
+  --warn-bg:#F7DDD5;
+  --hero-bg:#F2B705;
+  --hero-ink:#16210F;
+  --hero-chip:rgba(22,33,15,.14);
+  --hero-btn-bg:#16210F;
+  --hero-btn-ink:#F2B705;
+  --scrim:rgba(10,20,15,.5);
+  --f-display:'Archivo','Arial Narrow','Helvetica Neue',Arial,sans-serif;
+  --f-body:'Figtree',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1612;--surface:#17241D;--ink:#E7F0E9;--muted:#9CB2A5;--line:#2C4035;
+    --ready:#46B882;--on-ready:#05170D;--warn:#FF8A72;--warn-bg:#3B1E18;--scrim:rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1612;--surface:#17241D;--ink:#E7F0E9;--muted:#9CB2A5;--line:#2C4035;
+  --ready:#46B882;--on-ready:#05170D;--warn:#FF8A72;--warn-bg:#3B1E18;--scrim:rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font:400 1rem/1.4 var(--f-body);
+  padding-block:1rem 2.5rem;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+button{font:inherit;color:inherit}
+.wrap{max-width:74rem;margin:0 auto;display:grid;gap:1.3rem;padding-inline:clamp(0px,1.2vw,1rem)}
+.muted{color:var(--muted)}
+h1,h2,h3,p{margin:0}
+h2{font:800 1.7rem/1 var(--f-display);font-stretch:62%;text-transform:uppercase;letter-spacing:.02em;text-wrap:balance}
+h3{font:800 1.1rem/1 var(--f-display);font-stretch:62%;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+
+.tabs,.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;background:var(--surface);padding:.35rem;border-radius:1.2rem}
+.tab,.segb{
+  min-height:3.4rem;border:0;border-radius:.9rem;background:transparent;color:var(--muted);cursor:pointer;min-width:0;
+  font:800 1.2rem/1 var(--f-display);font-stretch:62%;text-transform:uppercase;letter-spacing:.04em;
+}
+.segb{min-height:3rem;font-size:1.1rem}
+.tab[aria-current="true"],.segb[aria-current="true"]{background:var(--ink);color:var(--bg)}
+.segb small{display:block;font:600 .62rem/1.2 var(--f-body);letter-spacing:.12em;margin-top:.25rem;font-stretch:100%}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+
+.note{background:transparent;border:2px dashed var(--line);border-radius:1.2rem;padding:1rem 1.1rem;display:grid;gap:.7rem}
+
+.hero{background:var(--hero-bg);color:var(--hero-ink);border-radius:1.7rem;padding:clamp(1.2rem,3.2vw,2.3rem);display:grid;gap:1.1rem}
+.eyebrow{font:700 .85rem/1.2 var(--f-body);letter-spacing:.16em;text-transform:uppercase}
+.hero h1{font:800 clamp(2.4rem,7.4vw,4.7rem)/.98 var(--f-display);font-stretch:62%;text-transform:uppercase;text-wrap:balance;overflow-wrap:anywhere}
+.hero .tip{font-size:1.05rem;max-width:48ch}
+.hero .chip{background:var(--hero-chip);color:var(--hero-ink)}
+.hero .chip i{background:var(--hero-ink)}
+.hero .btn{color:var(--hero-ink)}
+.hero .btn.primary{background:var(--hero-btn-bg);color:var(--hero-btn-ink);border-color:var(--hero-btn-bg)}
+
+.chips{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:.45rem;padding:.3rem .75rem;border-radius:999px;background:var(--surface);font:600 .92rem/1.2 var(--f-body);border:0}
+.chip i{width:.55rem;height:.55rem;border-radius:50%;background:var(--ready);flex:none}
+button.chip{cursor:pointer;min-height:2.2rem}
+.chip.miss{background:var(--warn-bg);color:var(--warn)}
+.chip.miss i{background:var(--warn)}
+.chip.pick{min-height:2.9rem;padding:.4rem 1.05rem;font-size:1rem;border:2px solid transparent}
+.chip.pick[aria-pressed="true"]{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+.lbl{font:600 .85rem/1.2 var(--f-body);color:var(--muted)}
+
+.btnrow{display:flex;flex-wrap:wrap;gap:.6rem}
+.btn{min-height:3.4rem;padding:0 1.5rem;border-radius:999px;border:2px solid currentColor;background:transparent;font:700 1.05rem/1 var(--f-body);cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.small{min-height:2.7rem;padding:0 1.1rem;font-size:.95rem}
+.btn[disabled]{opacity:.4;cursor:default}
+
+.sum{font-size:1.1rem}
+.sum b{font:800 1.5rem/1 var(--f-display);font-stretch:62%}
+.block{display:grid;gap:.8rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,19rem),1fr));gap:.7rem}
+.card{background:var(--surface);border:0;border-radius:1.1rem;padding:1rem 1.1rem;display:grid;gap:.65rem;text-align:left;align-content:start;min-width:0}
+button.card{cursor:pointer}
+.nm{font:700 1.15rem/1.2 var(--f-body);overflow-wrap:anywhere}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,10rem),1fr));gap:.6rem}
+.tile{min-height:5rem;border-radius:1rem;border:2px dashed var(--line);background:transparent;color:var(--muted);font:700 1.05rem/1.15 var(--f-body);text-align:left;padding:.75rem .9rem;display:flex;flex-direction:column;justify-content:space-between;gap:.4rem;cursor:pointer;min-width:0;overflow-wrap:anywhere}
+.tile small{font:600 .78rem/1 var(--f-body);letter-spacing:.06em;text-transform:uppercase}
+.tile[aria-pressed="true"]{background:var(--ready);border:2px solid var(--ready);color:var(--on-ready)}
+
+.rows{display:grid;gap:.45rem}
+.row{display:flex;justify-content:space-between;align-items:center;gap:1rem;background:var(--surface);border:0;border-radius:.95rem;padding:.65rem 1rem;min-height:3.1rem;text-align:left;min-width:0}
+button.row{cursor:pointer;width:100%}
+.row .t{min-width:0;overflow-wrap:anywhere;font-weight:600}
+.row .s{font-size:.9rem;color:var(--muted);white-space:nowrap}
+details.more summary{cursor:pointer;min-height:3.2rem;display:flex;align-items:center;font:700 1.05rem/1.2 var(--f-body);list-style:none;padding:0 .2rem}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::after{content:"  +";font-weight:800}
+details.more[open] summary::after{content:"  −"}
+details.more .rows{margin-top:.6rem}
+textarea.copybox{width:100%;min-height:8rem;background:var(--surface);color:var(--ink);border:2px solid var(--line);border-radius:.9rem;padding:.8rem;font:500 1rem/1.4 var(--f-body)}
+
+.field{width:100%;min-height:3.4rem;border-radius:.9rem;border:2px solid var(--line);background:var(--surface);color:var(--ink);padding:0 1rem;font:600 1.1rem var(--f-body)}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;color:var(--muted);font-size:.9rem;padding-top:.5rem}
+.link{background:none;border:0;padding:.5rem .2rem;min-height:2.6rem;cursor:pointer;text-decoration:underline;color:var(--muted)}
+
+.scrim{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--scrim);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.sheet{background:var(--bg);width:min(100%,46rem);border-radius:1.7rem 1.7rem 0 0;display:grid;gap:1rem;padding-top:1.5rem;padding-bottom:calc(1.5rem + env(safe-area-inset-bottom,0px));padding-left:max(1.4rem,env(safe-area-inset-left,0px));padding-right:max(1.4rem,env(safe-area-inset-right,0px));max-height:90%;overflow-y:auto}
+.hero-main{display:flex;flex-wrap:wrap;gap:1.4rem;align-items:center}
+.hero-text{flex:1 1 22rem;min-width:0;display:grid;gap:1.1rem}
+.hero-art{flex:0 1 15rem;margin-inline:auto;display:grid;gap:.5rem;min-width:0}
+.hero-art svg{width:100%;height:auto;display:block;max-width:100%}
+.quip{font:600 1rem/1.3 var(--f-body);text-align:center}
+.happy{background:var(--surface);border-radius:1.2rem;padding:1rem 1.2rem;display:grid;gap:.65rem}
+.happy p{font:600 1.1rem/1.35 var(--f-body);max-width:58ch}
+.happy .lbl{text-transform:uppercase;letter-spacing:.14em;font-weight:700}
+@media (prefers-reduced-motion:no-preference){
+  .tile,.tab,.segb,.btn{transition:background-color .15s,color .15s}
+}
+@media (max-width:600px){
+  .hero h1{font-size:2.3rem}
+  .tab{font-size:1.05rem}
+}
+</style>
+
+</head>
+<body>
+<main id="app" aria-live="off"></main>
+
+<script>
+(function(){
+'use strict';
+var KEY='que-comemos-hoy-v1', TKEY='que-comemos-hoy-tema';
+var app=document.getElementById('app');
+
+/* ---------- Catálogo: lo que se compra (id, nombre, qué tan rápido se daña 0-2) ---------- */
+var CATS=[
+ {n:'Granos y despensa',items:[['arroz','Arroz',0],['hab_rojas','Habichuelas rojas',0],['hab_negras','Habichuelas negras',0],['guandules','Guandules',0],['lentejas','Lentejas',0],['garbanzos','Garbanzos',0],['pasta','Espagueti / pasta',0],['avena','Avena',0],['harina_trigo','Harina de trigo',0],['pan','Pan',1],['coco','Leche de coco',0]]},
+ {n:'Víveres y plátanos',items:[['platano_verde','Plátano verde',1],['platano_maduro','Plátano maduro',2],['yuca','Yuca',1],['batata','Batata',1],['auyama','Auyama',1],['name','Ñame',0],['yautia','Yautía',0],['papa','Papa',0]]},
+ {n:'Carnes y pescado',items:[['pollo','Pollo',2],['res','Carne de res',2],['cerdo','Cerdo',2],['pescado','Pescado',2],['longaniza','Longaniza',1],['salami','Salami',0],['jamon','Jamón',1],['salchichas','Salchichas',1],['atun','Atún en lata',0]]},
+ {n:'Huevos y lácteos',items:[['huevos','Huevos',1],['queso_freir','Queso de freír',1],['queso_blanco','Queso blanco',1],['leche','Leche',1],['mantequilla','Mantequilla',0],['mayonesa','Mayonesa',0]]},
+ {n:'Verduras y frutas',items:[['tomate','Tomate',2],['lechuga','Lechuga',2],['pepino','Pepino',2],['repollo','Repollo',1],['zanahoria','Zanahoria',1],['aguacate','Aguacate',2],['guineo','Guineos maduros',2],['fruta_jugo','Frutas para jugo',2]]}
+];
+var NAME={},PER={},ALL=[];
+CATS.forEach(function(c){c.items.forEach(function(it){NAME[it[0]]=it[1];PER[it[0]]=it[2];ALL.push(it[0]);});});
+var BASICS='sal, aceite, ajo, cebolla, ají, cilantro, sazón, orégano, pasta de tomate y vinagre';
+var SLOTS=[['d','Desayuno'],['a','Almuerzo'],['c','Cena']];
+var SLOTNAME={d:'Desayuno',a:'Almuerzo',c:'Cena'};
+
+/* ---------- Recetas: r = requisitos (texto = obligatorio, lista = alguno de), o = extras que mejoran ---------- */
+var RECIPES=[
+ {n:'Mangú con huevo, queso frito o salami',s:'dc',r:['platano_verde',['huevos','queso_freir','salami','longaniza']],o:['mantequilla'],t:'Hierve los plátanos, májalos con un poco del agua caliente y mantequilla. Cebolla en vinagre encima.'},
+ {n:'Huevos revueltos',s:'dc',r:['huevos'],o:['jamon','tomate','queso_blanco','salchichas','pan','platano_maduro'],t:'Sofríe cebolla y tomate, agrega el huevo batido y cuaja a fuego bajo.'},
+ {n:'Sándwich',s:'dc',r:['pan',['jamon','salami','queso_blanco','huevos','atun']],o:['aguacate','tomate','lechuga','mayonesa'],t:'Tuesta el pan y arma con lo que haya. Si quieres caliente, derrite el queso en la sartén.'},
+ {n:'Tostada con aguacate',s:'d',r:['pan','aguacate'],o:['huevos','tomate','queso_blanco'],t:'Aguacate aplastado con limón y sal sobre pan tostado. Huevo encima si hay.'},
+ {n:'Avena con leche',s:'d',r:['avena','leche'],o:['platano_maduro'],t:'Hierve la avena en agua, agrega la leche, canela y azúcar al gusto.'},
+ {n:'Tortitas',s:'d',r:['harina_trigo','huevos','leche'],o:['mantequilla','platano_maduro'],t:'Mezcla harina, huevo y leche. Cocina en sartén con poca mantequilla.'},
+ {n:'Maduros fritos con huevo',s:'dc',r:['platano_maduro','huevos'],o:['queso_freir','salami'],t:'Fríe los maduros en rodajas hasta dorar y sirve con huevo frito.'},
+ {n:'Yuca hervida con huevo o salami',s:'dc',r:['yuca',['huevos','salami','queso_freir','longaniza']],o:[],t:'Hierve la yuca con sal hasta que esté suave. Cebolla sofrita con vinagre por encima.'},
+ {n:'Batata asada con queso',s:'dc',r:['batata',['queso_blanco','queso_freir']],o:['mantequilla'],t:'Asa o hierve la batata y sirve con el queso encima.'},
+ {n:'Tostones con queso frito o salami',s:'dc',r:['platano_verde',['queso_freir','salami','huevos','longaniza']],o:['aguacate'],t:'Fríe las rodajas, aplasta y vuelve a freír con sal. Sirve calientes.'},
+ {n:'Crema de auyama',s:'c',r:['auyama'],o:['leche','mantequilla','papa'],t:'Hierve la auyama con cebolla y ajo, licúa y ajusta con leche o agua.'},
+ {n:'Sopa de pollo',s:'ac',r:['pollo',['papa','zanahoria','auyama','yuca','pasta']],o:['platano_verde'],t:'Hierve el pollo sazonado, agrega los víveres picados y los fideos al final.'},
+ {n:'Sancocho',s:'a',r:[['res','pollo','cerdo'],'platano_verde',['yuca','name','yautia','auyama','papa']],o:[],t:'Carnes sazonadas hervidas con víveres troceados y plátano. Cilantro y limón al final.'},
+ {n:'Moro de guandules',s:'ac',r:['arroz','guandules'],o:['coco','cerdo','pollo'],t:'Sofríe el sazón, agrega los guandules y el arroz; cocina tapado a fuego bajo.'},
+ {n:'Moro de habichuelas negras',s:'ac',r:['arroz','hab_negras'],o:['cerdo','pollo'],t:'Sofríe sazón con las habichuelas cocidas, agrega el arroz y cocina tapado.'},
+ {n:'Locrio de pollo, salami o atún',s:'ac',r:['arroz',['pollo','salami','longaniza','atun']],o:['tomate'],t:'Sofríe la proteína con sazón, agrega arroz y caldo; cocina tapado.'},
+ {n:'Espagueti con salami, atún o pollo',s:'ac',r:['pasta',['salami','atun','salchichas','pollo','longaniza']],o:['queso_blanco','tomate'],t:'Hierve la pasta; sofríe la proteína con salsa de tomate y mezcla.'},
+ {n:'Mofongo de pollo o cerdo',s:'a',r:['platano_verde',['cerdo','pollo']],o:[],t:'Plátano frito majado con ajo y aceite; acompaña o rellena con la carne.'},
+ {n:'Pescado con coco',s:'a',r:['pescado','coco'],o:['arroz','platano_verde','tomate'],t:'Sofríe sazón, agrega la leche de coco, deja espesar y cocina el pescado dentro.'},
+ {n:'Pastelón de plátano maduro',s:'a',r:['platano_maduro','res','queso_blanco'],o:['huevos'],t:'Capas de maduro frito, carne guisada y queso; hornea hasta gratinar.'},
+ {n:'Ensalada de atún',s:'c',r:['atun',['lechuga','tomate','pepino','repollo','zanahoria','aguacate']],o:['mayonesa','huevos'],t:'Mezcla el atún con los vegetales picados, limón y un poco de mayonesa.'},
+ {n:'Ensalada rusa',s:'ac',r:['papa','zanahoria','huevos','mayonesa'],o:[],t:'Hierve papa, zanahoria y huevos; pica y mezcla con mayonesa y sal.'}
+];
+
+/* ---------- Plato fuerte: arroz + menestra + proteína + acompañante ---------- */
+var MEN=[['hab_rojas','habichuelas rojas'],['hab_negras','habichuelas negras'],['guandules','guandules guisados'],['lentejas','lentejas guisadas'],['garbanzos','garbanzos guisados']];
+var PRO=[['pollo','pollo guisado'],['res','carne guisada'],['cerdo','chuletas fritas'],['pescado','pescado frito'],['longaniza','longaniza frita'],['salami','salami frito'],['huevos','huevos fritos'],['queso_freir','queso frito'],['atun','atún guisado'],['salchichas','salchichas guisadas']];
+var SALAD=['lechuga','tomate','pepino','repollo','zanahoria'];
+
+/* ---------- Estado ---------- */
+function defaultState(){
+  var have={};
+  ['arroz','hab_rojas','hab_negras','guandules','pasta','avena','pan','platano_verde','platano_maduro','yuca','pollo','huevos','salami','queso_freir','leche','tomate','lechuga','aguacate','zanahoria','papa','atun'].forEach(function(i){have[i]=true;});
+  return {have:have,list:{},log:[],ex:true,u:0};
+}
+function norm(o){
+  o=o||{};
+  return {have:o.have||{},list:o.list||{},log:Array.isArray(o.log)?o.log.slice(-40):[],ex:!!o.ex,u:+o.u||0};
+}
+function loadLocal(){
+  try{var r=localStorage.getItem(KEY);if(r)return norm(JSON.parse(r));}catch(e){}
+  return null;
+}
+var S=loadLocal()||defaultState();
+
+var view='hoy', slot=slotNow(), manualSlot=false, heroIdx=0, pick=null, sheet=null;
+var openCombos=false, resetArmed=false, copyMsg='', copyText='', sync='pending';
+
+/* ---------- Guardado y sincronía (Firebase Realtime Database por REST) ---------- */
+/* Datos del proyecto de Firebase. Si quedan vacíos, la página guarda solo en el aparato. */
+var CFG={apiKey:'AIzaSyA8zMWh7H3bq6II0SroBKXaIqHVAXwI9Xc',dbUrl:'https://que-comemos-hoy-d085d-default-rtdb.firebaseio.com',email:'familia@casa.com',path:'casa'};
+var REF_KEY='que-comemos-hoy-ref';
+var remoteOn=!!(CFG.apiKey&&CFG.dbUrl&&CFG.email);
+var AUTH={tok:null,exp:0,ref:null};
+try{AUTH.ref=localStorage.getItem(REF_KEY)||null;}catch(e){}
+var dirty=false,base=null,synced=false,pushing=false,pushAgain=false,pushT=null,retryT=null,loginOpen=false;
+
+function canEdit(){return !remoteOn||!!AUTH.ref;}
+function nodeUrl(tok){return CFG.dbUrl.replace(/\/+$/,'')+'/'+CFG.path+'.json'+(tok?'?auth='+encodeURIComponent(tok):'');}
+function saveRef(v){AUTH.ref=v;try{if(v)localStorage.setItem(REF_KEY,v);else localStorage.removeItem(REF_KEY);}catch(e){}}
+function getToken(){
+  if(AUTH.tok&&Date.now()<AUTH.exp-60000)return Promise.resolve(AUTH.tok);
+  if(!AUTH.ref)return Promise.reject(new Error('sin sesion'));
+  return fetch('https://securetoken.googleapis.com/v1/token?key='+encodeURIComponent(CFG.apiKey),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(AUTH.ref)}).then(function(r){return r.json();}).then(function(j){
+    if(!j.id_token){saveRef(null);AUTH.tok=null;throw new Error('sesion vencida');}
+    AUTH.tok=j.id_token;AUTH.exp=Date.now()+(+j.expires_in||3600)*1000;
+    if(j.refresh_token)saveRef(j.refresh_token);
+    return AUTH.tok;
+  });
+}
+function login(pass){
+  return fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='+encodeURIComponent(CFG.apiKey),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:CFG.email,password:pass,returnSecureToken:true})}).then(function(r){return r.json();}).then(function(j){
+    if(!j.idToken)throw new Error('clave');
+    AUTH.tok=j.idToken;AUTH.exp=Date.now()+(+j.expiresIn||3600)*1000;saveRef(j.refreshToken);
+  });
+}
+function snap(){
+  var h={},l={},k={};
+  ALL.forEach(function(i){if(S.have[i])h[i]=true;if(S.list[i])l[i]=true;});
+  S.log.forEach(function(e){k[e.t]=1;});
+  return {have:h,list:l,ex:!!S.ex,logKeys:k};
+}
+function sig(s){
+  return JSON.stringify([Object.keys(s.have).filter(function(i){return s.have[i];}).sort(),Object.keys(s.list).filter(function(i){return s.list[i];}).sort(),s.log.map(function(e){return e.t;}),!!s.ex]);
+}
+function fromRemote(r){
+  var lg=r.log||{},arr=Array.isArray(lg)?lg.filter(Boolean):Object.keys(lg).sort().map(function(k){return lg[k];});
+  var h={},l={};
+  Object.keys(r.have||{}).forEach(function(i){if(r.have[i])h[i]=true;});
+  Object.keys(r.list||{}).forEach(function(i){if(r.list[i])l[i]=true;});
+  return {have:h,list:l,log:arr.slice(-40),ex:!!r.ex,u:S.u};
+}
+function syncLabel(){
+  if(!remoteOn)return 'Guardado solo en este aparato';
+  if(sync==='denied')return 'Esa clave no tiene permiso para editar';
+  if(sync==='err')return 'Sin conexión, reintentando…';
+  if(sync==='pending')return 'Conectando…';
+  return canEdit()?'Sincronizado · puedes editar':'Sincronizado · solo lectura';
+}
+function setSync(v){
+  sync=v;
+  var el=document.getElementById('sync');
+  if(el)el.textContent=syncLabel();
+}
+function pull(){
+  if(!remoteOn||loginOpen)return Promise.resolve();
+  return fetch(nodeUrl(null),{cache:'no-store'}).then(function(r){
+    if(!r.ok)throw new Error('http '+r.status);
+    return r.json();
+  }).then(function(r){
+    synced=true;
+    if(sync!=='denied')setSync('ok');
+    if(dirty||pushing)return;
+    if(r===null){base=null;return;}
+    var ns=fromRemote(r),changed=sig(ns)!==sig(S);
+    S=ns;base=snap();
+    try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+    if(changed)render();
+  }).catch(function(){setSync('err');});
+}
+function touch(){S.ex=false;S.u=Date.now();dirty=true;scheduleSave();}
+function scheduleSave(){
+  try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+  if(!remoteOn||!canEdit())return;
+  clearTimeout(pushT);pushT=setTimeout(push,600);
+}
+function push(){
+  if(!remoteOn||!canEdit())return;
+  if(!synced){clearTimeout(retryT);retryT=setTimeout(push,3000);return;}
+  if(pushing){pushAgain=true;return;}
+  pushing=true;
+  var cur=snap();
+  getToken().then(function(tok){
+    var url=nodeUrl(tok);
+    if(base===null){
+      var lg={};
+      S.log.forEach(function(e){lg[e.t]=e;});
+      return fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({have:cur.have,list:cur.list,ex:cur.ex,log:lg})});
+    }
+    var p={};
+    ALL.forEach(function(i){
+      if(!!cur.have[i]!==!!base.have[i])p['have/'+i]=cur.have[i]?true:null;
+      if(!!cur.list[i]!==!!base.list[i])p['list/'+i]=cur.list[i]?true:null;
+    });
+    S.log.forEach(function(e){if(!base.logKeys[e.t])p['log/'+e.t]=e;});
+    if(cur.ex!==base.ex)p.ex=cur.ex;
+    if(!Object.keys(p).length)return null;
+    return fetch(url,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+  }).then(function(r){
+    if(r&&!r.ok){var er=new Error('http');er.st=r.status;throw er;}
+    base=cur;
+    if(!pushAgain)dirty=false;
+    setSync('ok');
+  }).catch(function(e){
+    if(e&&(e.st===401||e.st===403)){setSync('denied');}
+    else{setSync('err');clearTimeout(retryT);retryT=setTimeout(push,8000);}
+  }).then(function(){
+    pushing=false;
+    if(pushAgain){pushAgain=false;push();}
+  });
+}
+function initSync(){
+  if(!remoteOn){setSync('local');return;}
+  pull();
+  setInterval(function(){if(!document.hidden)pull();},10000);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)pull();});
+}
+
+/* ---------- Utilidades ---------- */
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function hh(s){var h=0;for(var i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))|0;}return Math.abs(h);}
+function uniq(a){var o={},r=[];a.forEach(function(x){if(!o[x]){o[x]=1;r.push(x);}});return r;}
+function joinEs(a){return a.length<2?a.join(''):a.slice(0,-1).join(', ')+' y '+a[a.length-1];}
+function dayKey(){var d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
+function slotNow(){var d=new Date(),h=d.getHours()+d.getMinutes()/60;return h<10.5?'d':h<15.5?'a':'c';}
+function dateStr(){
+  try{return new Intl.DateTimeFormat('es',{weekday:'long',day:'numeric',month:'long'}).format(new Date());}catch(e){return '';}
+}
+function lastItems(n){var o={};S.log.slice(-n).forEach(function(e){(e.it||[]).forEach(function(i){o[i]=1;});});return o;}
+function metReq(req,have){
+  var unmet=[],used=[];
+  req.forEach(function(q){
+    if(Array.isArray(q)){
+      var f=q.filter(function(i){return have[i];});
+      if(f.length)used=used.concat(f.slice(0,2));else unmet.push(q);
+    }else if(have[q])used.push(q);else unmet.push(q);
+  });
+  return {unmet:unmet,used:used};
+}
+function sidesOf(H){
+  var out=[],sl=SALAD.filter(function(i){return H[i];});
+  if(sl.length){var two=sl.slice(0,2);out.push({n:'ensalada de '+two.map(function(i){return NAME[i].toLowerCase();}).join(' y '),ids:two});}
+  if(H.platano_verde)out.push({n:'tostones',ids:['platano_verde']});
+  if(H.platano_maduro)out.push({n:'maduros fritos',ids:['platano_maduro']});
+  if(H.yuca)out.push({n:'yuca hervida',ids:['yuca']});
+  if(H.batata)out.push({n:'batata asada',ids:['batata']});
+  if(H.aguacate)out.push({n:'aguacate',ids:['aguacate']});
+  return out;
+}
+function countPlates(H){
+  if(!H.arroz)return 0;
+  var M=MEN.filter(function(m){return H[m[0]];}),P=PRO.filter(function(p){return H[p[0]];});
+  if(!M.length&&!P.length)return 0;
+  return Math.max(1,M.length)*Math.max(1,P.length)*Math.max(1,sidesOf(H).length);
+}
+function scoreOf(name,items,sl,kind,extra,last2,recNames){
+  var s=10+extra*0.6;
+  items.forEach(function(i){s+=PER[i]*1.2;if(i!=='arroz'&&last2[i])s-=1.5;});
+  if(recNames.indexOf(name)>=0)s-=12;
+  if(kind==='r')s+=sl==='a'?0:2;else s+=sl==='a'?3:-1;
+  s+=(hh(dayKey()+name)%300)/100;
+  return s;
+}
+function buildPlates(sl,last2,recNames){
+  var H=S.have,list=[];
+  if(!H.arroz)return {n:0,list:list};
+  var M=MEN.filter(function(m){return H[m[0]];}),P=PRO.filter(function(p){return H[p[0]];}),SD=sidesOf(H);
+  if(!M.length&&!P.length)return {n:0,list:list};
+  var Ms=M.length?M:[null],Ps=P.length?P:[null],Ss=SD.length?SD:[null];
+  Ms.forEach(function(m){Ps.forEach(function(p){Ss.forEach(function(sd){
+    var parts=[m&&m[1],p&&p[1],sd&&sd.n].filter(Boolean);
+    var name='Arroz con '+joinEs(parts);
+    var items=['arroz'];
+    if(m)items.push(m[0]);if(p)items.push(p[0]);if(sd)items=items.concat(sd.ids);
+    var sc=scoreOf(name,items,sl,'p',0,last2,recNames);
+    if(m&&p&&(m[0]==='hab_rojas'||m[0]==='hab_negras')&&['pollo','res','cerdo','pescado'].indexOf(p[0])>=0)sc+=2;
+    list.push({k:'p:'+name,kind:'p',name:name,items:items,tip:'Guisa la proteína con sazón y cebolla y sirve cada parte por separado.',fam:p?p[0]:'-',score:sc});
+  });});});
+  list.sort(function(a,b){return b.score-a.score;});
+  return {n:list.length,list:list};
+}
+function slotData(sl){
+  var ready=[],near=[],last2=lastItems(2),recNames=S.log.slice(-4).map(function(e){return e.n;});
+  RECIPES.forEach(function(r){
+    if(r.s.indexOf(sl)<0)return;
+    var m=metReq(r.r,S.have),opt=r.o.filter(function(i){return S.have[i];}),items=uniq(m.used.concat(opt));
+    if(!m.unmet.length)ready.push({k:'r:'+r.n,kind:'r',name:r.n,items:items,tip:r.t,fam:r.n,score:scoreOf(r.n,items,sl,'r',opt.length,last2,recNames)});
+    else if(m.unmet.length===1)near.push({name:r.n,items:items,miss:m.unmet[0]});
+  });
+  var pl=sl==='d'?{n:0,list:[]}:buildPlates(sl,last2,recNames);
+  var cand=ready.concat(pl.list).sort(function(a,b){return b.score-a.score;});
+  near.sort(function(a,b){return b.items.length-a.items.length;});
+  return {ready:ready,near:near.slice(0,6),plates:pl,cand:cand};
+}
+function gains(){
+  var rc={},out=[],base=countPlates(S.have);
+  RECIPES.forEach(function(r){
+    var m=metReq(r.r,S.have);
+    if(m.unmet.length===1){var q=m.unmet[0];(Array.isArray(q)?q:[q]).forEach(function(i){rc[i]=(rc[i]||0)+1;});}
+  });
+  ALL.forEach(function(id){
+    if(S.have[id])return;
+    var h2=Object.assign({},S.have);h2[id]=true;
+    var pc=countPlates(h2)-base,r=rc[id]||0;
+    if(r||pc>0)out.push({id:id,r:r,pc:pc});
+  });
+  out.sort(function(a,b){return (b.r*3+b.pc)-(a.r*3+a.pc);});
+  return out.slice(0,12);
+}
+
+/* ---------- Vistas ---------- */
+function chips(ids){
+  return ids.map(function(i){return '<span class="chip"><i></i>'+esc(NAME[i])+'</span>';}).join('');
+}
+function missBtn(id){
+  return '<button class="chip miss" data-act="list" data-id="'+id+'"><i></i>'+esc(NAME[id])+(S.list[id]?' · en la lista':' · + lista')+'</button>';
+}
+function missChips(q){
+  if(Array.isArray(q))return '<span class="lbl">Falta alguno:</span>'+q.slice(0,4).map(missBtn).join('');
+  return '<span class="lbl">Falta:</span>'+missBtn(q);
+}
+function nav(){
+  var t=[['hoy','Hoy'],['despensa','Despensa'],['compra','Compra']];
+  return '<nav class="tabs" aria-label="Secciones">'+t.map(function(x){
+    return '<button class="tab" data-act="view" data-v="'+x[0]+'" data-fk="tab-'+x[0]+'"'+(view===x[0]?' aria-current="true"':'')+'>'+x[1]+(x[0]==='compra'&&Object.keys(S.list).length?' ('+Object.keys(S.list).length+')':'')+'</button>';
+  }).join('')+'</nav>';
+}
+function diversify(cand,hero){
+  var seen={},out=[],rest=[];
+  if(hero)seen[hero.fam]=1;
+  cand.forEach(function(c){
+    if(hero&&c.k===hero.k)return;
+    if(!seen[c.fam]&&out.length<6){seen[c.fam]=1;out.push(c);}else rest.push(c);
+  });
+  while(out.length<4&&rest.length)out.push(rest.shift());
+  return out;
+}
+/* ---------- Dibujo: cada ingrediente del plato es un personaje con carita ---------- */
+var FC={arroz:'#F7F3E8',hab_rojas:'#8E2A2A',hab_negras:'#3A3A44',guandules:'#9BB05A',lentejas:'#A8743A',garbanzos:'#D9B574',pasta:'#F0D58C',avena:'#D8C3A0',harina_trigo:'#EADFC8',pan:'#D79A52',coco:'#F5F5F0',platano_verde:'#7FAE47',platano_maduro:'#F2C230',yuca:'#EBDDBA',batata:'#D9772B',auyama:'#E88A1A',name:'#B79A7A',yautia:'#A58B6E',papa:'#C9A15F',pollo:'#D98B52',res:'#A04B3A',cerdo:'#E3A0A0',pescado:'#8FB4C8',longaniza:'#B5452E',salami:'#B0383E',jamon:'#E58C98',salchichas:'#D2674E',atun:'#C9807A',huevos:'#FFF1B8',queso_freir:'#F4D35E',queso_blanco:'#F7EFD2',leche:'#F5F8FA',mantequilla:'#F6DD73',mayonesa:'#F3EAC9',tomate:'#D6392B',lechuga:'#6DB85A',pepino:'#4F9D5B',repollo:'#A7D08C',zanahoria:'#EE7F22',aguacate:'#6B8E3A',guineo:'#F2C230',fruta_jugo:'#F08A3C'};
+function f1(x){return (Math.round(x*10)/10).toString();}
+function art(items){
+  var ids=items.slice(0,4),n=ids.length,r=n>=4?25:n===3?29:n===2?34:40,INK='#16210F';
+  var xs={1:[120],2:[86,154],3:[64,120,176],4:[50,97,144,191]}[n]||[120];
+  var o='<svg viewBox="0 0 240 200" role="img" aria-label="Dibujo divertido: los ingredientes del plato con carita" xmlns="http://www.w3.org/2000/svg">';
+  o+='<ellipse cx="120" cy="158" rx="108" ry="32" fill="#fff" stroke="'+INK+'" stroke-width="4"/><ellipse cx="120" cy="156" rx="82" ry="21" fill="none" stroke="'+INK+'" stroke-opacity=".25" stroke-width="3"/>';
+  ids.forEach(function(id,k){
+    var cx=xs[k],cy=150-r,ex=r*0.36,ey=cy-r*0.1,er=r*0.2,pr=r*0.09;
+    if(k===0){
+      [[-.3,-.28],[0,-.42],[.3,-.28]].forEach(function(p){o+='<circle cx="'+f1(cx+r*p[0])+'" cy="'+f1(cy-r+r*p[1]+r*0.1)+'" r="'+f1(r*.26)+'" fill="#fff" stroke="'+INK+'" stroke-width="3"/>';});
+    }
+    o+='<circle cx="'+f1(cx)+'" cy="'+f1(cy)+'" r="'+r+'" fill="'+(FC[id]||'#DDD')+'" stroke="'+INK+'" stroke-width="3.5"/>';
+    if(k===0){o+='<rect x="'+f1(cx-r*.5)+'" y="'+f1(cy-r-r*.1)+'" width="'+f1(r)+'" height="'+f1(r*.4)+'" rx="3" fill="#fff" stroke="'+INK+'" stroke-width="3"/>';}
+    o+='<circle cx="'+f1(cx-r*.58)+'" cy="'+f1(cy+r*.22)+'" r="'+f1(r*.11)+'" fill="#E65A5A" fill-opacity=".35"/><circle cx="'+f1(cx+r*.58)+'" cy="'+f1(cy+r*.22)+'" r="'+f1(r*.11)+'" fill="#E65A5A" fill-opacity=".35"/>';
+    if(k===1){
+      o+='<path d="M'+f1(cx-ex-er)+' '+f1(ey)+' Q'+f1(cx-ex)+' '+f1(ey-er*.9)+' '+f1(cx-ex+er)+' '+f1(ey)+'" fill="none" stroke="'+INK+'" stroke-width="3" stroke-linecap="round"/>';
+    }else{
+      o+='<circle cx="'+f1(cx-ex)+'" cy="'+f1(ey)+'" r="'+f1(er)+'" fill="#fff" stroke="'+INK+'" stroke-width="2"/><circle cx="'+f1(cx-ex+pr*.4)+'" cy="'+f1(ey+pr*.3)+'" r="'+f1(pr)+'" fill="'+INK+'"/>';
+    }
+    o+='<circle cx="'+f1(cx+ex)+'" cy="'+f1(ey)+'" r="'+f1(er)+'" fill="#fff" stroke="'+INK+'" stroke-width="2"/><circle cx="'+f1(cx+ex+pr*.4)+'" cy="'+f1(ey+pr*.3)+'" r="'+f1(pr)+'" fill="'+INK+'"/>';
+    var mx=r*.3,my=cy+r*.3;
+    if(k%2===0)o+='<path d="M'+f1(cx-mx)+' '+f1(my)+' Q'+f1(cx)+' '+f1(my+r*.4)+' '+f1(cx+mx)+' '+f1(my)+'" fill="none" stroke="'+INK+'" stroke-width="3" stroke-linecap="round"/>';
+    else o+='<path d="M'+f1(cx-mx)+' '+f1(my-r*.05)+' Q'+f1(cx)+' '+f1(my+r*.55)+' '+f1(cx+mx)+' '+f1(my-r*.05)+' Z" fill="#7A1F1F" stroke="'+INK+'" stroke-width="2.5" stroke-linejoin="round"/>';
+  });
+  return o+'</svg>';
+}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+function quip(hero){
+  var ids=hero.items.filter(function(i){return i!=='arroz';});
+  if(!ids.length)ids=hero.items;
+  var A=cap(NAME[ids[0]].toLowerCase()),a=A.toLowerCase(),two=ids.length>1,B=two?NAME[ids[1]].toLowerCase():'';
+  var T=two?[
+    A+' y '+B+': la pareja que nunca falla.',
+    'Con '+a+' y '+B+' en el plato, nadie pone cara de "¿otra vez?".',
+    'Foto oficial del plato: '+a+', '+B+' y mucha sonrisa.',
+    'Si '+a+' y '+B+' pudieran, se aplaudirían solos.',
+    'Hoy el menú lo firman '+a+' y '+B+'.'
+  ]:[
+    'Con '+a+' en el plato, nadie pone cara de "¿otra vez?".',
+    'Foto oficial del plato: '+a+' y mucha sonrisa.',
+    'Menú firmado: '+a+'.',
+    A+': sencillo, rico y sin drama.'
+  ];
+  return T[hh(hero.name)%T.length];
+}
+function happy(){
+  var msgs=[
+    'Si a este plato le agregas un jugo fresco, un guineo maduro o unos plátanos fritos, la mesa se pone de mejor humor.',
+    'Receta de ánimo: jugo bien frío, guineo maduro o plátanos fritos al lado. No lo dice la ciencia, lo dice la cara de los que comen.',
+    'Un jugo, un guineo maduro o unos maduros fritos al lado, y de pronto todo el mundo sonríe.',
+    'Recomendación oficial de la casa: el plato rinde más si trae jugo, guineo maduro o plátanos fritos.'
+  ];
+  var m=msgs[hh(dayKey()+slot)%msgs.length];
+  var ex=['fruta_jugo','guineo','platano_maduro'];
+  return '<section class="happy"><div class="lbl">Dato de la casa</div><p>'+esc(m)+'</p><div class="chips">'+ex.map(function(i){
+    return S.have[i]?'<span class="chip"><i></i>'+esc(NAME[i])+' · hay</span>':missBtn(i);
+  }).join('')+'</div></section>';
+}
+function hoy(){
+  var d=slotData(slot),hero=null,nowSlot=slotNow();
+  if(pick)hero=d.cand.filter(function(c){return c.k===pick;})[0]||null;
+  if(!hero&&d.cand.length){var top=d.cand.slice(0,12);hero=top[heroIdx%top.length];}
+  var h='';
+  h+='<div class="seg" role="group" aria-label="Comida del día">'+SLOTS.map(function(s){
+    return '<button class="segb" data-act="slot" data-s="'+s[0]+'" data-fk="slot-'+s[0]+'"'+(slot===s[0]?' aria-current="true"':'')+'>'+s[1]+(s[0]===nowSlot?'<small>ahora</small>':'')+'</button>';
+  }).join('')+'</div>';
+  if(remoteOn&&!canEdit())h+='<div class="note"><p><b>Modo lectura.</b> Aquí ves qué hay en casa, qué falta y qué se puede traer. Para marcar cosas, entra con la clave de la familia.</p><div class="btnrow"><button class="btn primary small" data-act="login">Entrar para editar</button></div></div>';
+  if(S.ex&&canEdit())h+='<div class="note"><p><b>Ejemplo.</b> Esta es una despensa de muestra para que veas cómo funciona. Marca lo que de verdad hay en casa y las sugerencias cambian.</p><div class="btnrow"><button class="btn primary small" data-act="goDesp">Marcar mi despensa</button><button class="btn small" data-act="dismissEx">Entendido</button></div></div>';
+  if(hero){
+    h+='<section class="hero"><div class="hero-main"><div class="hero-text"><div class="eyebrow">'+(pick?'Elegido · ':'')+SLOTNAME[slot]+' · '+esc(dateStr())+'</div><h1>'+esc(hero.name)+'</h1><div class="chips">'+chips(hero.items)+'</div><p class="tip">'+esc(hero.tip)+'</p><div class="btnrow"><button class="btn primary" data-act="cook">Cocinamos esto</button><button class="btn" data-act="other">Otra sugerencia</button></div></div><div class="hero-art">'+art(hero.items)+'<p class="quip">'+esc(quip(hero))+'</p></div></div></section>'+happy();
+  }else{
+    var any=Object.keys(S.have).some(function(k){return S.have[k];});
+    h+='<section class="hero"><div class="eyebrow">'+SLOTNAME[slot]+' · '+esc(dateStr())+'</div><h1>'+(any?'Todavía no alcanza para '+SLOTNAME[slot].toLowerCase():'Falta saber qué hay en casa')+'</h1><p class="tip">'+(any?'Mira abajo qué compra desbloquea más platos.':'Marca lo que tienes en la despensa y te digo qué cocinar.')+'</p><div class="btnrow"><button class="btn primary" data-act="goDesp">Marcar lo que hay</button><button class="btn" data-act="goCompra">Ver la compra</button></div></section>';
+  }
+  h+='<p class="sum"><b>'+d.ready.length+'</b> '+(d.ready.length===1?'plato listo':'platos listos')+(slot!=='d'?' · <b>'+d.plates.n+'</b> combinaciones de plato fuerte':'')+'</p>';
+  var more=diversify(d.cand,hero);
+  if(more.length){
+    h+='<section class="block"><h2>También podemos hacer</h2><div class="grid">'+more.map(function(c){
+      return '<button class="card" data-act="pick" data-k="'+esc(c.k)+'"><span class="nm">'+esc(c.name)+'</span><span class="chips">'+chips(c.items)+'</span></button>';
+    }).join('')+'</div></section>';
+  }
+  if(d.near.length){
+    h+='<section class="block"><h2>Con una compra más</h2><div class="grid">'+d.near.map(function(c){
+      return '<div class="card"><span class="nm">'+esc(c.name)+'</span><span class="chips">'+chips(c.items)+'</span><span class="chips">'+missChips(c.miss)+'</span></div>';
+    }).join('')+'</div></section>';
+  }
+  if(d.plates.n){
+    h+='<details class="more" id="combos"'+(openCombos?' open':'')+'><summary>Ver las '+d.plates.n+' combinaciones de plato fuerte</summary><div class="rows">'+d.plates.list.slice(0,80).map(function(c){
+      return '<button class="row" data-act="pick" data-k="'+esc(c.k)+'"><span class="t">'+esc(c.name)+'</span></button>';
+    }).join('')+(d.plates.n>80?'<p class="muted">Se muestran las 80 mejores según lo que hay y lo que ya cocinaron.</p>':'')+'</div></details>';
+  }
+  return h;
+}
+function despensa(){
+  var n=ALL.filter(function(i){return S.have[i];}).length;
+  var h='<div class="block"><h2>Lo que hay en casa</h2><p class="muted">'+n+' de '+ALL.length+' marcados · toca para marcar o quitar</p></div>';
+  CATS.forEach(function(c){
+    h+='<section class="block"><h3>'+c.n+'</h3><div class="tiles">'+c.items.map(function(it){
+      var on=!!S.have[it[0]];
+      return '<button class="tile" data-act="tile" data-id="'+it[0]+'" data-fk="t-'+it[0]+'" aria-pressed="'+on+'">'+esc(it[1])+'<small>'+(on?'En casa':(S.list[it[0]]?'En la lista':'Falta'))+'</small></button>';
+    }).join('')+'</div></section>';
+  });
+  h+='<p class="muted">Siempre damos por hecho que hay: '+BASICS+'.</p>';
+  h+='<div class="btnrow"><button class="btn" data-act="reset">'+(resetArmed?'Toca otra vez para vaciar todo':'Empezar de cero')+'</button></div>';
+  return h;
+}
+function compra(){
+  var ids=ALL.filter(function(i){return S.list[i];});
+  var h='<section class="block"><h2>Lista de compra</h2>';
+  if(ids.length){
+    h+='<div class="rows">'+ids.map(function(i){return '<div class="row"><span class="t">'+esc(NAME[i])+'</span><button class="btn small" data-act="list" data-id="'+i+'">Quitar</button></div>';}).join('')+'</div>';
+  }else h+='<p class="muted">La lista está vacía. Agrega de lo que sugiere abajo, o lo que se acabe al cocinar entra solo.</p>';
+  h+='<div class="btnrow"><button class="btn primary"'+(ids.length?'':' disabled')+' data-act="arrived">Llegó la compra</button><button class="btn"'+(ids.length?'':' disabled')+' data-act="copy">Copiar lista</button></div>';
+  if(copyMsg)h+='<p class="muted">'+esc(copyMsg)+'</p>';
+  if(copyText)h+='<textarea class="copybox" readonly id="copybox">'+esc(copyText)+'</textarea>';
+  h+='</section>';
+  var g=gains();
+  h+='<section class="block"><h2>Qué comprar primero</h2><p class="muted">Ordenado por cuántos platos nuevos se pueden hacer con cada cosa.</p>';
+  if(g.length){
+    h+='<div class="rows">'+g.map(function(x){
+      var s=[];if(x.r)s.push('+'+x.r+(x.r===1?' receta':' recetas'));if(x.pc>0)s.push('+'+x.pc+' combinaciones');
+      return '<div class="row"><span class="t">'+esc(NAME[x.id])+'</span><span class="s">'+s.join(' · ')+'</span><button class="btn small" data-act="list" data-id="'+x.id+'">'+(S.list[x.id]?'En la lista':'A la lista')+'</button></div>';
+    }).join('')+'</div>';
+  }else h+='<p class="muted">Con lo que hay ya se cubre casi todo. Cuando algo falte, aparece aquí.</p>';
+  h+='</section>';
+  var rest=ALL.filter(function(i){return !S.have[i]&&!S.list[i];});
+  if(rest.length)h+='<details class="more"><summary>Agregar otra cosa a la lista</summary><div class="chips" style="margin-top:.6rem">'+rest.map(function(i){return '<button class="chip" data-act="list" data-id="'+i+'">+ '+esc(NAME[i])+'</button>';}).join('')+'</div></details>';
+  return h;
+}
+function sheetHtml(){
+  var any=Object.keys(sheet.sel).some(function(k){return sheet.sel[k];});
+  return '<div class="scrim" data-act="sheetCancel"><div class="sheet" role="dialog" aria-modal="true" aria-label="Qué se acabó"><h2>¿Se acabó algo?</h2><p class="muted">Lo que marques sale de la despensa y pasa a la lista de compra.</p><div class="chips">'+sheet.items.map(function(i){
+    return '<button class="chip pick" data-act="sheetToggle" data-id="'+i+'" aria-pressed="'+!!sheet.sel[i]+'">'+esc(NAME[i])+(sheet.sel[i]?' · se acabó':'')+'</button>';
+  }).join('')+'</div><div class="btnrow"><button class="btn primary" data-act="sheetDone">'+(any?'Anotar y actualizar':'Nada se acabó, anotar')+'</button><button class="btn" data-act="sheetCancel">Cancelar</button></div></div></div>';
+}
+function loginHtml(){
+  return '<div class="scrim" data-act="loginCancel"><div class="sheet" role="dialog" aria-modal="true" aria-label="Entrar para editar"><h2>Entrar para editar</h2><p class="muted">Escribe la clave de la familia. Queda guardada en este aparato.</p><form id="loginform"><div class="block"><input class="field" id="clave" type="password" autocomplete="current-password" placeholder="Clave"><p class="muted" id="loginmsg"></p><div class="btnrow"><button class="btn primary" type="submit">Entrar</button><button class="btn" type="button" data-act="loginCancel">Cancelar</button></div></div></form></div></div>';
+}
+function themeMode(){try{return localStorage.getItem(TKEY)||'auto';}catch(e){return 'auto';}}
+function applyTheme(){
+  var m=themeMode(),r=document.documentElement;
+  if(m==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',m);
+}
+function build(){
+  var body=view==='hoy'?hoy():view==='despensa'?despensa():compra();
+  var tl={auto:'automático',light:'claro',dark:'oscuro'}[themeMode()];
+  var acc=remoteOn?(canEdit()?'<button class="link" data-act="logout">Salir de edición</button>':'<button class="link" data-act="login">Entrar para editar</button>'):'';
+  return '<div class="wrap">'+nav()+body+'<footer class="foot"><span id="sync">'+syncLabel()+'</span><span>'+acc+'<button class="link" data-act="theme">Tema: '+tl+'</button></span></footer></div>'+(sheet?sheetHtml():'')+(loginOpen?loginHtml():'');
+}
+function render(){
+  var y=window.pageYOffset||0,ae=document.activeElement,fk=ae&&ae.dataset?ae.dataset.fk:null;
+  app.innerHTML=build();
+  window.scrollTo(0,y);
+  if(fk){var el=app.querySelector('[data-fk="'+fk+'"]');if(el)el.focus({preventScroll:true});}
+}
+
+/* ---------- Acciones ---------- */
+function finishCook(){
+  var sel=sheet.sel;
+  S.log.push({n:sheet.name,it:sheet.items,s:sheet.slot,t:Date.now()});
+  S.log=S.log.slice(-40);
+  Object.keys(sel).forEach(function(i){if(sel[i]){S.have[i]=false;S.list[i]=true;}});
+  touch();sheet=null;heroIdx=0;pick=null;
+}
+app.addEventListener('click',function(e){
+  var b=e.target.closest('[data-act]');
+  if(!b)return;
+  var act=b.dataset.act,id=b.dataset.id;
+  if((act==='sheetCancel'||act==='loginCancel')&&b.classList.contains('scrim')&&e.target!==b)return;
+  var W={tile:1,list:1,arrived:1,cook:1,reset:1,dismissEx:1};
+  if(W[act]&&!canEdit()){loginOpen=true;render();var ci=document.getElementById('clave');if(ci)ci.focus();return;}
+  switch(act){
+    case 'view':view=b.dataset.v;copyMsg='';copyText='';window.scrollTo(0,0);break;
+    case 'slot':slot=b.dataset.s;manualSlot=true;heroIdx=0;pick=null;break;
+    case 'pick':pick=b.dataset.k;window.scrollTo(0,0);break;
+    case 'other':pick=null;heroIdx++;break;
+    case 'goDesp':view='despensa';window.scrollTo(0,0);break;
+    case 'goCompra':view='compra';window.scrollTo(0,0);break;
+    case 'dismissEx':touch();break;
+    case 'cook':{
+      var d=slotData(slot),hero=null;
+      if(pick)hero=d.cand.filter(function(c){return c.k===pick;})[0]||null;
+      if(!hero&&d.cand.length){var top=d.cand.slice(0,12);hero=top[heroIdx%top.length];}
+      if(hero)sheet={name:hero.name,items:hero.items,slot:slot,sel:{}};
+      break;
+    }
+    case 'sheetToggle':sheet.sel[id]=!sheet.sel[id];break;
+    case 'sheetDone':finishCook();break;
+    case 'sheetCancel':sheet=null;break;
+    case 'tile':S.have[id]=!S.have[id];if(S.have[id])delete S.list[id];touch();break;
+    case 'list':if(S.list[id])delete S.list[id];else S.list[id]=true;touch();break;
+    case 'arrived':Object.keys(S.list).forEach(function(i){S.have[i]=true;});S.list={};touch();copyMsg='';copyText='';break;
+    case 'copy':{
+      var txt=ALL.filter(function(i){return S.list[i];}).map(function(i){return '- '+NAME[i];}).join('\n');
+      copyText='';copyMsg='';
+      var done=function(ok){copyMsg=ok?'Lista copiada.':'No se pudo copiar. Selecciona el texto de abajo.';copyText=ok?'':txt;render();};
+      try{navigator.clipboard.writeText(txt).then(function(){done(true);},function(){done(false);});}catch(err){done(false);}
+      return;
+    }
+    case 'reset':
+      if(!resetArmed){resetArmed=true;setTimeout(function(){resetArmed=false;render();},3500);}
+      else{S.have={};S.list={};touch();resetArmed=false;}
+      break;
+    case 'login':loginOpen=true;render();var ci2=document.getElementById('clave');if(ci2)ci2.focus();return;
+    case 'loginCancel':loginOpen=false;break;
+    case 'logout':saveRef(null);AUTH.tok=null;break;
+    case 'theme':{
+      var m=themeMode(),nx=m==='auto'?'light':m==='light'?'dark':'auto';
+      try{localStorage.setItem(TKEY,nx);}catch(err){}
+      applyTheme();break;
+    }
+  }
+  render();
+});
+app.addEventListener('toggle',function(e){if(e.target&&e.target.id==='combos')openCombos=e.target.open;},true);
+app.addEventListener('submit',function(e){
+  e.preventDefault();
+  var inp=document.getElementById('clave'),msg=document.getElementById('loginmsg');
+  if(!inp||!inp.value)return;
+  if(msg)msg.textContent='Entrando…';
+  login(inp.value).then(function(){loginOpen=false;setSync('ok');render();pull();},function(){var m=document.getElementById('loginmsg');if(m)m.textContent='Clave incorrecta o sin conexión.';});
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&(sheet||loginOpen)){sheet=null;loginOpen=false;render();}});
+setInterval(function(){
+  if(!manualSlot){var s=slotNow();if(s!==slot){slot=s;heroIdx=0;pick=null;render();}}
+},60000);
+
+applyTheme();
+render();
+initSync();
+})();
+</script>
+</body>
+</html>
